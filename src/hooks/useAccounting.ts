@@ -1,10 +1,11 @@
 import { useState, useCallback } from 'react';
 import type { Account, NewAccountData } from '../types/account';
 
-const API_LEDGER_URL = 'http://localhost:3001/api/accounting/ledger'; 
-const API_CATALOG_URL = 'http://localhost:3001/api/accounting/catalog'; 
-const API_LEDGERIZE_URL = 'http://localhost:3001/api/accounting/ledgerize'; 
-const API_ACCOUNT_MOVEMENTS_URL = 'http://localhost:3001/api/accounting/account-movements'; 
+const API_LEDGER_URL = '/api/accounting/ledger';
+const API_CATALOG_URL = '/api/accounting/catalog';
+const API_CATALOG_IMPORT_URL = '/api/accounting/catalog/import';
+const API_LEDGERIZE_URL = '/api/accounting/ledgerize';
+const API_ACCOUNT_MOVEMENTS_URL = '/api/accounting/account-movements';
 
 export interface LedgerEntry {
     cuenta_id: number;
@@ -30,6 +31,7 @@ interface AccountingHookResult {
     isLoadingLedger: boolean; 
     fetchCatalog: (userId: string | undefined) => Promise<void>;
     addAccount: (data: NewAccountData, userId: string | undefined) => Promise<boolean>;
+    importAccounts: (accounts: any[], userId: string | undefined) => Promise<any>;
     deleteAccount: (accountId: number, userId: string | undefined) => Promise<boolean>;
     ledgerize: (userId: string | undefined) => Promise<boolean>; 
     fetchLedger: (userId: string | undefined) => Promise<void>;
@@ -258,6 +260,51 @@ export const useAccounting = (): AccountingHookResult => {
         fetchCatalog,
         fetchLedger, 
         addAccount,
+        importAccounts: async (accounts: any[], userId: string | undefined) => {
+            if (!userId) return { insertedCount: 0, skippedCount: 0, failures: [{ reason: 'userId requerido' }] };
+
+            if (isLoadingCatalog) {
+                console.warn('importAccounts ignorado: ya hay una carga en proceso.');
+                return { insertedCount: 0, skippedCount: 0, failures: [{ reason: 'Carga en proceso' }] };
+            }
+
+            try {
+                const response = await fetch(`${API_CATALOG_IMPORT_URL}?userId=${userId}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(accounts),
+                });
+
+                if (!response.ok) {
+                    // Try to parse JSON error, otherwise read text/plain or HTML
+                    const contentType = response.headers.get('content-type') || '';
+                    if (contentType.includes('application/json')) {
+                        const err = await response.json();
+                        throw new Error(err.error || 'Fallo al importar catálogo');
+                    } else {
+                        const text = await response.text();
+                        // Likely HTML (e.g. dev server index.html) or plain text
+                        throw new Error(`Fallo al importar catálogo: servidor respondió con contenido no JSON:\n${text.slice(0, 1000)}`);
+                    }
+                }
+
+                const contentType = response.headers.get('content-type') || '';
+                let data: any;
+                if (contentType.includes('application/json')) {
+                    data = await response.json();
+                } else {
+                    const text = await response.text();
+                    throw new Error(`Respuesta inesperada del servidor (no JSON): ${text.slice(0, 1000)}`);
+                }
+                // refresh catalog after successful import
+                await fetchCatalog(userId);
+                return data;
+            } catch (error: any) {
+                console.error('Error importando catálogo:', error.message);
+                alert(`Error al importar catálogo: ${error.message}`);
+                return { insertedCount: 0, skippedCount: 0, failures: [{ reason: error.message }] };
+            }
+        },
         deleteAccount,
         ledgerize,
         fetchAccountMovements, 

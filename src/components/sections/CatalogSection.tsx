@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import type { Account, NewAccountData } from '../../types/account';
 import AddAccountModal from '../modals/AddAccountModal';
 
@@ -7,10 +7,71 @@ interface CatalogSectionProps {
   isLoading: boolean;
   addAccount: (data: NewAccountData) => Promise<boolean>;
   deleteAccount: (accountId: number) => Promise<boolean>;
+  importAccounts: (accounts: any[]) => Promise<any>;
 }
 
-const CatalogSection: React.FC<CatalogSectionProps> = ({ catalog, isLoading, addAccount, deleteAccount }) => {
+const CatalogSection: React.FC<CatalogSectionProps> = ({ catalog, isLoading, addAccount, deleteAccount, importAccounts }) => {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const [isImporting, setIsImporting] = useState(false);
+
+  const parseCSV = (text: string) => {
+    const lines = text.split(/\r?\n/).map(l => l.trim()).filter(l => l.length > 0);
+    if (lines.length === 0) return [];
+    const stripQuotes = (s: string) => s.replace(/\uFEFF/g, '').replace(/^"|"$/g, '').trim();
+    const headers = lines[0].split(',').map(h => stripQuotes(h).toLowerCase());
+    const rows = lines.slice(1);
+    const results: any[] = [];
+    for (const row of rows) {
+      // simple CSV split, does not fully support quoted commas
+      const cols = row.split(',').map(c => stripQuotes(c));
+      const obj: any = {};
+      for (let i = 0; i < headers.length; i++) {
+        obj[headers[i]] = cols[i] !== undefined ? cols[i] : '';
+      }
+      results.push(obj);
+    }
+    return results;
+  };
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files && e.target.files[0];
+    if (!file) return;
+
+    if (!window.confirm('Importar archivo CSV: ¿Desea continuar? Asegúrese de que el CSV tiene cabeceras: codigo,nombre,naturaleza,esCuentaMayor,parent_codigo')) {
+      e.currentTarget.value = '';
+      return;
+    }
+
+    setIsImporting(true);
+    try {
+      const text = await file.text();
+      const parsed = parseCSV(text);
+      if (parsed.length === 0) {
+        alert('Archivo CSV vacío o inválido.');
+        return;
+      }
+
+      // Map parsed rows to expected object shape
+      const mapped = parsed.map((r: any) => ({
+        codigo: r.codigo || r.code || r.cod || r.account || '',
+        nombre: r.nombre || r.name || '',
+        naturaleza: (r.naturaleza || r.nature || r.type || 'D').toUpperCase(),
+        esCuentaMayor: (String(r.escuentamayor || r.es_cuenta_mayor || r.ismain || r.main || '')).toLowerCase() === 'true' || (r.escuentamayor === '1') || (r.escuentamayor === 'sí') || (r.escuentamayor === 'si'),
+        parent_codigo: r.parent_codigo || r.parentCode || r.parent || r.padre || null,
+      }));
+
+      const result = await importAccounts(mapped);
+      alert(`Importación completa. Insertados: ${result.insertedCount || 0}. Omitidos: ${result.skippedCount || 0}. Errores: ${(result.failures || []).length}`);
+      // reset file input
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    } catch (err: any) {
+      console.error('Error leyendo CSV:', err);
+      alert('Error al procesar el archivo CSV. Revise el formato.');
+    } finally {
+      setIsImporting(false);
+    }
+  };
 
   const getNatureColor = (nature: 'D' | 'C') => {
     return nature === 'D' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800';
@@ -87,12 +148,20 @@ const CatalogSection: React.FC<CatalogSectionProps> = ({ catalog, isLoading, add
     <div className="p-8">
       <div className="flex justify-between items-center mb-6 border-b pb-4">
         <h1 className="text-3xl font-bold text-gray-800">Catálogo de Cuentas</h1>
-        <button
-          onClick={() => setIsAddModalOpen(true)}
-          className="px-4 py-2 bg-blue-600 text-white font-semibold rounded-lg shadow-md hover:bg-blue-700 transition duration-200"
-        >
-          + Agregar Nueva Cuenta
-        </button>
+        <div className="flex items-center gap-3">
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input ref={fileInputRef} onChange={handleFileChange} type="file" accept=".csv,text/csv" id="catalogFile" className="hidden" />
+            <button id="importBtn" disabled={isImporting} onClick={() => fileInputRef.current?.click()} className={`px-4 py-2 ${isImporting ? 'bg-gray-400' : 'bg-yellow-500 hover:bg-yellow-600'} text-white font-semibold rounded-lg shadow-md transition duration-200`}>
+              {isImporting ? 'Importando...' : 'Importar CSV'}
+            </button>
+          </label>
+          <button
+            onClick={() => setIsAddModalOpen(true)}
+            className="px-4 py-2 bg-blue-600 text-white font-semibold rounded-lg shadow-md hover:bg-blue-700 transition duration-200"
+          >
+            + Agregar Nueva Cuenta
+          </button>
+        </div>
       </div>
 
       {isLoading && catalog.length === 0 ? (

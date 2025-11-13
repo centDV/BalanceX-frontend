@@ -1,7 +1,7 @@
 import { useState, useCallback } from 'react';
 import type { NewAsientoData } from '../types/journal'; 
 
-const API_JOURNAL_URL = 'http://localhost:3001/api/accounting/journal';
+const API_JOURNAL_URL = '/api/accounting/journal';
 
 interface UseJournalResult {
   isLoadingJournal: boolean;

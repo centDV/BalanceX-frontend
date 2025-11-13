@@ -1,11 +1,15 @@
 import React, { useState, useEffect, useRef } from 'react';
 import Header from './components/sections/Header';
 import UserFormModal from './components/modals/UserFormModal';
+import LoginModal from './components/modals/LoginModal';
 import Sidebar from './components/sections/Sidebar';
 import DeleteConfirmationModal from './components/modals/DeleteConfirmationModal';
 import CatalogSection from './components/sections/CatalogSection';
 import JournalSection from './components/sections/JournalSection';
 import LedgerSection from './components/sections/LedgerSection';
+import BalanceSheetSection from './components/sections/BalanceSheetSection';
+import IncomeStatementSection from './components/sections/IncomeStatementSection';
+import TrialBalanceSection from './components/sections/TrialBalanceSection';
 import AsientoModal from './components/modals/AsientoModal';
 import { useUserData } from './hooks/useUserData';
 import { useAccounting } from './hooks/useAccounting';
@@ -19,9 +23,15 @@ const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
 const {
   user,
   isModalOpen,
+  isLoginOpen,
+  isRegisterOpen,
   isLoading,
   handleSaveUser,
   deleteUserAndReload,
+  handleLogout,
+  openRegister,
+  closeRegister,
+  loginUser,
   } = useUserData();
 
 const {
@@ -33,6 +43,7 @@ const {
   fetchLedger,
   addAccount,
   deleteAccount,
+  importAccounts,
   ledgerize,
   fetchAccountMovements,
   } = useAccounting();
@@ -142,6 +153,7 @@ switch (activeSection) {
         isLoading={isLoadingCatalog}
         addAccount={(data) => addAccount(data, user.id)}
         deleteAccount={(accountId) => deleteAccount(accountId, user.id)}
+        importAccounts={(accounts) => importAccounts(accounts, user?.id)}
       />
     );
   case 'Libro Diario':
@@ -168,6 +180,31 @@ switch (activeSection) {
         fetchAccountMovements={fetchAccountMovements}
       />
     );
+
+  case 'Balance General':
+    return (
+      <BalanceSheetSection
+        userId={user.id}
+        isLoading={isLoadingLedger}
+      />
+    );
+
+  case 'Balance de Comprobación':
+    return (
+      <TrialBalanceSection
+        userId={user.id}
+        isLoading={isLoadingLedger}
+      />
+    );
+
+  case 'Estado de Resultados':
+    return (
+      <IncomeStatementSection
+        userId={user.id}
+        isLoading={isLoadingLedger}
+      />
+    );
+
   case 'Bienvenido':
   default:
     return (
@@ -196,13 +233,20 @@ return (
 <>
 <Header />
 <Sidebar
-onDeleteClick={() => setIsDeleteModalOpen(true)}
 onSectionChange={setSection}
 onAsientoClick={handleOpenAsientoModal}
+user={user}
+onLogout={handleLogout}
 />
 
+  <LoginModal
+    isOpen={isLoginOpen && !isLoading}
+    onLoginSuccess={loginUser}
+    onRegisterClick={openRegister}
+  />
+
   <UserFormModal
-    isOpen={isModalOpen && !isLoading}
+    isOpen={(isModalOpen || isRegisterOpen) && !isLoading}
     onSave={handleSaveUser}
   />
   

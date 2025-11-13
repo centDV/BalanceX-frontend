@@ -2,20 +2,30 @@ import { useState, useEffect } from 'react';
 import type { User } from '../types/user'; 
 
 const LOCAL_STORAGE_KEY = 'currentUser';
-const API_URL = 'http://localhost:3001/api/user/save';
-const API_DELETE_BASE_URL = 'http://localhost:3001/api/user/'; 
+const API_URL = '/api/user/save';
+const API_DELETE_BASE_URL = '/api/user/'; 
 
 interface UserHookResult {
   user: User | null;
   isModalOpen: boolean;
+  isLoginOpen: boolean;
+  isRegisterOpen: boolean;
   isLoading: boolean;
   handleSaveUser: (newUser: User) => Promise<void>;
   deleteUserAndReload: () => Promise<void>;
+  handleLogout: () => void;
+  openLogin: () => void;
+  openRegister: () => void;
+  closeLogin: () => void;
+  closeRegister: () => void;
+  loginUser: (user: User) => void;
 }
 
 export const useUserData = (): UserHookResult => {
   const [user, setUser] = useState<User | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isLoginOpen, setIsLoginOpen] = useState(false);
+  const [isRegisterOpen, setIsRegisterOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -23,7 +33,7 @@ export const useUserData = (): UserHookResult => {
     if (storedUser) {
       setUser(JSON.parse(storedUser));
     } else {
-      setIsModalOpen(true);
+      setIsLoginOpen(true);
     }
     setIsLoading(false);
   }, []);
@@ -86,11 +96,35 @@ export const useUserData = (): UserHookResult => {
     }
   };
 
+  const handleLogout = () => {
+    localStorage.removeItem(LOCAL_STORAGE_KEY);
+    setUser(null);
+    setIsLoginOpen(true);
+  };
+
+  const loginUser = (newUser: User) => {
+    localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(newUser));
+    setUser(newUser);
+    setIsLoginOpen(false);
+    setIsRegisterOpen(false);
+  };
+
   return {
     user,
     isModalOpen,
+    isLoginOpen,
+    isRegisterOpen,
     isLoading,
     handleSaveUser,
     deleteUserAndReload,
+    handleLogout,
+    openLogin: () => setIsLoginOpen(true),
+    openRegister: () => {
+      setIsLoginOpen(false);
+      setIsRegisterOpen(true);
+    },
+    closeLogin: () => setIsLoginOpen(false),
+    closeRegister: () => setIsRegisterOpen(false),
+    loginUser,
   };
 };
