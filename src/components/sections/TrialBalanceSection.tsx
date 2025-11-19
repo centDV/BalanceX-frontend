@@ -5,8 +5,10 @@ interface Account {
   codigo: string;
   nombre: string;
   naturaleza: string;
-  debito: number;
-  credito: number;
+  movimiento_deudor: number;
+  movimiento_acreedor: number;
+  saldo_deudor: number;
+  saldo_acreedor: number;
 }
 
 interface TrialBalanceProps {
@@ -16,7 +18,12 @@ interface TrialBalanceProps {
 
 const TrialBalanceSection: React.FC<TrialBalanceProps> = ({ userId, isLoading }) => {
   const [accounts, setAccounts] = useState<Account[]>([]);
-  const [totals, setTotals] = useState({ debito: 0, credito: 0 });
+  const [totals, setTotals] = useState({ 
+    movimiento_deudor: 0, 
+    movimiento_acreedor: 0, 
+    saldo_deudor: 0, 
+    saldo_acreedor: 0 
+  });
   const [dataLoading, setDataLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -42,12 +49,36 @@ const TrialBalanceSection: React.FC<TrialBalanceProps> = ({ userId, isLoading })
 
       const data = await response.json();
       
-      // Calculate totals
-      const totalDebito = data.reduce((sum: number, acc: Account) => sum + (acc.debito || 0), 0);
-      const totalCredito = data.reduce((sum: number, acc: Account) => sum + (acc.credito || 0), 0);
+      // Convert string values to numbers, calculate saldos, and filter accounts with funds
+      const parsedData = data
+        .map((acc: any) => {
+          const movDeudor = parseFloat(acc.debito) || 0;
+          const movAcreedor = parseFloat(acc.credito) || 0;
+          const diferencia = movDeudor - movAcreedor;
+          
+          return {
+            ...acc,
+            movimiento_deudor: movDeudor,
+            movimiento_acreedor: movAcreedor,
+            saldo_deudor: diferencia > 0 ? diferencia : 0,
+            saldo_acreedor: diferencia < 0 ? Math.abs(diferencia) : 0,
+          };
+        })
+        .filter((acc: Account) => acc.movimiento_deudor > 0 || acc.movimiento_acreedor > 0);
       
-      setAccounts(data);
-      setTotals({ debito: totalDebito, credito: totalCredito });
+      // Calculate totals
+      const totals = parsedData.reduce(
+        (sums: { movimiento_deudor: number; movimiento_acreedor: number; saldo_deudor: number; saldo_acreedor: number }, acc: Account) => ({
+          movimiento_deudor: sums.movimiento_deudor + acc.movimiento_deudor,
+          movimiento_acreedor: sums.movimiento_acreedor + acc.movimiento_acreedor,
+          saldo_deudor: sums.saldo_deudor + acc.saldo_deudor,
+          saldo_acreedor: sums.saldo_acreedor + acc.saldo_acreedor,
+        }),
+        { movimiento_deudor: 0, movimiento_acreedor: 0, saldo_deudor: 0, saldo_acreedor: 0 }
+      );
+      
+      setAccounts(parsedData);
+      setTotals(totals);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error desconocido');
       console.error('Error fetching trial balance:', err);
@@ -56,7 +87,9 @@ const TrialBalanceSection: React.FC<TrialBalanceProps> = ({ userId, isLoading })
     }
   };
 
-  const isBalanced = Math.abs(totals.debito - totals.credito) < 0.01;
+  const isBalanced = 
+    Math.abs(totals.movimiento_deudor - totals.movimiento_acreedor) < 0.01 &&
+    Math.abs(totals.saldo_deudor - totals.saldo_acreedor) < 0.01;
 
   return (
     <div className="p-8">
@@ -82,11 +115,16 @@ const TrialBalanceSection: React.FC<TrialBalanceProps> = ({ userId, isLoading })
           <table className="w-full border-collapse">
             <thead>
               <tr className="bg-blue-50 border-b-2 border-blue-200">
-                <th className="px-4 py-3 text-left font-semibold text-gray-700">Código</th>
-                <th className="px-4 py-3 text-left font-semibold text-gray-700">Cuenta</th>
-                <th className="px-4 py-3 text-center font-semibold text-gray-700">Naturaleza</th>
-                <th className="px-4 py-3 text-right font-semibold text-gray-700">Débito</th>
-                <th className="px-4 py-3 text-right font-semibold text-gray-700">Crédito</th>
+                <th rowSpan={2} className="px-4 py-3 text-left font-semibold text-gray-700 border-r">Código</th>
+                <th rowSpan={2} className="px-4 py-3 text-left font-semibold text-gray-700 border-r">Concepto<br/>Cuenta</th>
+                <th colSpan={2} className="px-4 py-2 text-center font-semibold text-gray-700 border-r">Movimientos</th>
+                <th colSpan={2} className="px-4 py-2 text-center font-semibold text-gray-700">Saldos</th>
+              </tr>
+              <tr className="bg-blue-50 border-b-2 border-blue-200">
+                <th className="px-4 py-2 text-center font-semibold text-gray-700">Deudor</th>
+                <th className="px-4 py-2 text-center font-semibold text-gray-700 border-r">Acreedor</th>
+                <th className="px-4 py-2 text-center font-semibold text-gray-700">Deudor</th>
+                <th className="px-4 py-2 text-center font-semibold text-gray-700">Acreedor</th>
               </tr>
             </thead>
             <tbody>
@@ -97,40 +135,47 @@ const TrialBalanceSection: React.FC<TrialBalanceProps> = ({ userId, isLoading })
                     index % 2 === 0 ? 'bg-white' : 'bg-gray-50'
                   } hover:bg-blue-50 transition-colors`}
                 >
-                  <td className="px-4 py-3 text-gray-800 font-mono">{account.codigo}</td>
-                  <td className="px-4 py-3 text-gray-800">{account.nombre}</td>
-                  <td className="px-4 py-3 text-center text-gray-600">
-                    <span className="inline-block px-2 py-1 bg-gray-200 rounded text-sm">
-                      {account.naturaleza}
-                    </span>
+                  <td className="px-4 py-3 text-gray-800 font-mono border-r">{account.codigo}</td>
+                  <td className="px-4 py-3 text-gray-800 border-r">{account.nombre}</td>
+                  <td className="px-4 py-3 text-right text-gray-800 font-mono">
+                    {account.movimiento_deudor > 0 ? `$${account.movimiento_deudor.toFixed(2)}` : '$0.00'}
+                  </td>
+                  <td className="px-4 py-3 text-right text-gray-800 font-mono border-r">
+                    {account.movimiento_acreedor > 0 ? `$${account.movimiento_acreedor.toFixed(2)}` : '$0.00'}
                   </td>
                   <td className="px-4 py-3 text-right text-gray-800 font-mono">
-                    {account.debito > 0 ? account.debito.toFixed(2) : '-'}
+                    {account.saldo_deudor > 0 ? `$${account.saldo_deudor.toFixed(2)}` : '$0.00'}
                   </td>
                   <td className="px-4 py-3 text-right text-gray-800 font-mono">
-                    {account.credito > 0 ? account.credito.toFixed(2) : '-'}
+                    {account.saldo_acreedor > 0 ? `$${account.saldo_acreedor.toFixed(2)}` : '$0.00'}
                   </td>
                 </tr>
               ))}
             </tbody>
             <tfoot>
               <tr className="bg-blue-100 border-t-2 border-blue-300 font-bold">
-                <td colSpan={3} className="px-4 py-3 text-right text-gray-800">
+                <td colSpan={2} className="px-4 py-3 text-right text-gray-800 border-r">
                   TOTALES:
                 </td>
                 <td className="px-4 py-3 text-right text-gray-800 font-mono">
-                  {totals.debito.toFixed(2)}
+                  ${totals.movimiento_deudor.toFixed(2)}
+                </td>
+                <td className="px-4 py-3 text-right text-gray-800 font-mono border-r">
+                  ${totals.movimiento_acreedor.toFixed(2)}
                 </td>
                 <td className="px-4 py-3 text-right text-gray-800 font-mono">
-                  {totals.credito.toFixed(2)}
+                  ${totals.saldo_deudor.toFixed(2)}
+                </td>
+                <td className="px-4 py-3 text-right text-gray-800 font-mono">
+                  ${totals.saldo_acreedor.toFixed(2)}
                 </td>
               </tr>
               <tr className={`${isBalanced ? 'bg-green-100' : 'bg-red-100'}`}>
-                <td colSpan={5} className="px-4 py-3 text-center font-semibold">
+                <td colSpan={6} className="px-4 py-3 text-center font-semibold">
                   {isBalanced ? (
-                    <span className="text-green-800">✓ Balance correcto (Débito = Crédito)</span>
+                    <span className="text-green-800">✓ Balance correcto</span>
                   ) : (
-                    <span className="text-red-800">✗ Balance incorrecto - Diferencia: {(totals.debito - totals.credito).toFixed(2)}</span>
+                    <span className="text-red-800">✗ Balance incorrecto</span>
                   )}
                 </td>
               </tr>

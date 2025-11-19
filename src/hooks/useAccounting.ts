@@ -31,6 +31,7 @@ interface AccountingHookResult {
     isLoadingLedger: boolean; 
     fetchCatalog: (userId: string | undefined) => Promise<void>;
     addAccount: (data: NewAccountData, userId: string | undefined) => Promise<boolean>;
+    updateAccount: (accountId: number, data: NewAccountData, userId: string | undefined) => Promise<boolean>;
     importAccounts: (accounts: any[], userId: string | undefined) => Promise<any>;
     deleteAccount: (accountId: number, userId: string | undefined) => Promise<boolean>;
     ledgerize: (userId: string | undefined) => Promise<boolean>; 
@@ -252,6 +253,41 @@ export const useAccounting = (): AccountingHookResult => {
         }
     }, [isLoadingCatalog, fetchCatalog]);
 
+    const updateAccount = useCallback(async (accountId: number, data: NewAccountData, userId: string | undefined): Promise<boolean> => {
+        if (!userId) return false;
+
+        if (isLoadingCatalog) {
+            console.warn('updateAccount ignorado: ya hay una carga en proceso.');
+            return false;
+        }
+
+        setIsLoadingCatalog(true);
+        try {
+            const payload = { ...data, userId: userId };
+            
+            const response = await fetch(`${API_CATALOG_URL}/${accountId}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload),
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || 'Fallo al actualizar la cuenta.');
+            }
+
+            await fetchCatalog(userId); 
+            return true;
+            
+        } catch (error: any) {
+            console.error('Error updating account:', error.message);
+            alert(`Error al actualizar cuenta: ${error.message}`);
+            return false;
+        } finally {
+            setIsLoadingCatalog(false);
+        }
+    }, [isLoadingCatalog, fetchCatalog]);
+
     return {
         catalog,
         ledger, 
@@ -260,6 +296,7 @@ export const useAccounting = (): AccountingHookResult => {
         fetchCatalog,
         fetchLedger, 
         addAccount,
+        updateAccount,
         importAccounts: async (accounts: any[], userId: string | undefined) => {
             if (!userId) return { insertedCount: 0, skippedCount: 0, failures: [{ reason: 'userId requerido' }] };
 

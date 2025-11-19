@@ -100,6 +100,23 @@ const JournalSection: React.FC<JournalSectionProps> = ({
         });
     }, [asientos, dateFilter, descriptionFilter]);
 
+    // Ordenar los asientos filtrados por fecha ascendente y asignar número secuencial
+    const sortedFilteredAsientos = useMemo(() => {
+        if (!filteredAsientos.length) return [];
+        // Copiamos y ordenamos por fecha; si la fecha es igual, ordenamos por id para estabilidad
+        return filteredAsientos.slice().sort((a, b) => {
+            const ta = Date.parse(a.fecha as string);
+            const tb = Date.parse(b.fecha as string);
+            if (isNaN(ta) && isNaN(tb)) return 0;
+            if (isNaN(ta)) return 1;
+            if (isNaN(tb)) return -1;
+            if (ta !== tb) return ta - tb;
+            const ida = a.id || 0;
+            const idb = b.id || 0;
+            return ida - idb;
+        });
+    }, [filteredAsientos]);
+
 
     return (
         <section className="p-8 bg-white rounded-xl shadow">
@@ -144,24 +161,25 @@ const JournalSection: React.FC<JournalSectionProps> = ({
                             </tr>
                         </thead>
                         <tbody>
-                            {/* Usamos filteredAsientos en lugar de asientos */}
-                            {filteredAsientos.map((asiento, idx) => {
+                            {/* Usamos los asientos filtrados y ordenados por fecha */}
+                            {sortedFilteredAsientos.map((asiento, idx) => {
                                 // Mantenemos el total para la validación del balance
                                 const totalDebito = asiento.lineas.reduce((sum, line) => sum + line.debito, 0);
                                 const totalCredito = asiento.lineas.reduce((sum, line) => sum + line.credito, 0);
+
+                                const asientoNumber = idx + 1; // número secuencial basado en la fecha (orden asc)
 
                                 return (
                                     <React.Fragment key={asiento.id || idx}>
                                         <tr className="bg-gray-50 border-t-2 border-gray-300">
                                             <td className="px-3 py-2 text-sm font-semibold">{formatDate(asiento.fecha)}</td>
                                             <td colSpan={3} className="px-3 py-2 text-sm font-semibold">
-                                                {/* Usamos asiento.id si existe, si no, idx + 1 como número temporal */}
-                                                {`Asiento N° ${asiento.id || (idx + 1)}: ${asiento.descripcion} ${asiento.referencia ? `(Ref: ${asiento.referencia})` : ''}`}
+                                                {`Asiento N° ${asientoNumber}: ${asiento.descripcion} ${asiento.referencia ? `(Ref: ${asiento.referencia})` : ''}`}
                                             </td>
                                         </tr>
 
                                         {asiento.lineas.map((line, i) => (
-                                            <tr key={`${asiento.id || idx}-${i}`} className="border-t border-gray-200 text-sm hover:bg-gray-50 transition">
+                                            <tr key={`${asiento.id || asientoNumber}-${i}`} className="border-t border-gray-200 text-sm hover:bg-gray-50 transition">
                                                 <td className="px-3 py-1"></td>
                                                 <td className={`px-3 py-1 ${line.credito > 0 ? 'pl-10' : 'font-medium'}`}>
                                                     {getAccountName(line.cuenta_id)}
@@ -187,7 +205,7 @@ const JournalSection: React.FC<JournalSectionProps> = ({
                                                     </button>
                                                 )}
                                                 <span>
-                                                    TOTAL ASIENTO N° {asiento.id || (idx + 1)}
+                                                    TOTAL ASIENTO N° {asientoNumber}
                                                 </span>
 
                                             </td>

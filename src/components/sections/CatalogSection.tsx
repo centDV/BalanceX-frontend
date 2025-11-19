@@ -6,12 +6,15 @@ interface CatalogSectionProps {
   catalog: Account[];
   isLoading: boolean;
   addAccount: (data: NewAccountData) => Promise<boolean>;
+  updateAccount: (accountId: number, data: NewAccountData) => Promise<boolean>;
   deleteAccount: (accountId: number) => Promise<boolean>;
   importAccounts: (accounts: any[]) => Promise<any>;
 }
 
-const CatalogSection: React.FC<CatalogSectionProps> = ({ catalog, isLoading, addAccount, deleteAccount, importAccounts }) => {
+const CatalogSection: React.FC<CatalogSectionProps> = ({ catalog, isLoading, addAccount, updateAccount, deleteAccount, importAccounts }) => {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [accountToEdit, setAccountToEdit] = useState<Account | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [isImporting, setIsImporting] = useState(false);
 
@@ -102,6 +105,21 @@ const CatalogSection: React.FC<CatalogSectionProps> = ({ catalog, isLoading, add
     }
   };
 
+  const onEditClick = (account: Account) => {
+    setAccountToEdit(account);
+    setIsEditModalOpen(true);
+  };
+
+  const handleEditSave = async (data: NewAccountData) => {
+    if (!accountToEdit) return false;
+    const success = await updateAccount(accountToEdit.id, data);
+    if (success) {
+      setIsEditModalOpen(false);
+      setAccountToEdit(null);
+    }
+    return success;
+  };
+
   const renderAccountRow = (account: Account, level = 0, renderedIds = new Set<number>()): React.ReactNode => {
     if (renderedIds.has(account.id)) return null; 
     renderedIds.add(account.id);
@@ -128,6 +146,13 @@ const CatalogSection: React.FC<CatalogSectionProps> = ({ catalog, isLoading, add
             </span>
           </td>
           <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-center">
+            <button
+              onClick={() => onEditClick(account)}
+              className="text-blue-600 hover:text-blue-900 transition duration-150 ease-in-out font-semibold px-2 py-1 rounded-md border border-blue-600 hover:border-blue-900 mr-2"
+              title="Editar esta cuenta"
+            >
+              Editar
+            </button>
             <button
               onClick={() => onDeleteClick(account)}
               className="text-red-600 hover:text-red-900 transition duration-150 ease-in-out font-semibold px-2 py-1 rounded-md border border-red-600 hover:border-red-900"
@@ -193,6 +218,17 @@ const CatalogSection: React.FC<CatalogSectionProps> = ({ catalog, isLoading, add
         onClose={() => setIsAddModalOpen(false)}
         onSave={addAccount}
         catalog={catalog} 
+      />
+
+      <AddAccountModal
+        isOpen={isEditModalOpen}
+        onClose={() => {
+          setIsEditModalOpen(false);
+          setAccountToEdit(null);
+        }}
+        onSave={handleEditSave}
+        catalog={catalog}
+        accountToEdit={accountToEdit}
       />
     </div>
   );

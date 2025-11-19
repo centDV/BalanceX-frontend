@@ -6,6 +6,7 @@ interface AddAccountModalProps {
   onClose: () => void;
   onSave: (data: NewAccountData) => Promise<boolean>;
   catalog: Account[];
+  accountToEdit?: Account | null;
 }
 
 const initialData: NewAccountData = {
@@ -16,14 +17,24 @@ const initialData: NewAccountData = {
   parent_id: null,
 };
 
-const AddAccountModal: React.FC<AddAccountModalProps> = ({ isOpen, onClose, onSave, catalog }) => {
+const AddAccountModal: React.FC<AddAccountModalProps> = ({ isOpen, onClose, onSave, catalog, accountToEdit }) => {
   const [formData, setFormData] = useState<NewAccountData>(initialData);
 
   useEffect(() => {
     if (isOpen) {
-      setFormData(initialData);
+      if (accountToEdit) {
+        setFormData({
+          codigo: accountToEdit.codigo,
+          nombre: accountToEdit.nombre,
+          naturaleza: accountToEdit.naturaleza,
+          esCuentaMayor: accountToEdit.es_cuenta_mayor,
+          parent_id: accountToEdit.parent_id,
+        });
+      } else {
+        setFormData(initialData);
+      }
     }
-  }, [isOpen]);
+  }, [isOpen, accountToEdit]);
 
   if (!isOpen) return null;
 
@@ -58,7 +69,7 @@ const AddAccountModal: React.FC<AddAccountModalProps> = ({ isOpen, onClose, onSa
     <div className="fixed inset-0 bg-gray-900 bg-opacity-50 flex justify-center items-center z-40 p-4">
       <div className="bg-white p-6 rounded-xl shadow-2xl w-full max-w-lg">
         <h2 className="text-2xl font-bold mb-4 text-blue-800 border-b pb-2">
-          Agregar Nueva Cuenta Contable
+          {accountToEdit ? 'Editar Cuenta Contable' : 'Agregar Nueva Cuenta Contable'}
         </h2>
 
         <form onSubmit={handleSubmit} className="space-y-4">

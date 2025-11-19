@@ -42,6 +42,7 @@ const {
   fetchCatalog,
   fetchLedger,
   addAccount,
+  updateAccount,
   deleteAccount,
   importAccounts,
   ledgerize,
@@ -152,6 +153,7 @@ switch (activeSection) {
         catalog={catalog}
         isLoading={isLoadingCatalog}
         addAccount={(data) => addAccount(data, user.id)}
+        updateAccount={(accountId, data) => updateAccount(accountId, data, user.id)}
         deleteAccount={(accountId) => deleteAccount(accountId, user.id)}
         importAccounts={(accounts) => importAccounts(accounts, user?.id)}
       />
@@ -159,7 +161,6 @@ switch (activeSection) {
   case 'Libro Diario':
     return (
       <JournalSection
-        key={Date.now()}
         userId={user.id}
         isLoading={isLoadingJournal}
         fetchJournal={fetchJournal}

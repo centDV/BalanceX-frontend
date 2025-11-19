@@ -7,18 +7,20 @@ interface BalanceSheetProps {
 
 interface BalanceSheetData {
   fecha: string;
-  activos: {
-    corrientes: BalanceItem[];
-    noCorrientes: BalanceItem[];
-    totalActivos: number;
-  };
-  pasivos: {
-    corrientes: BalanceItem[];
-    noCorrientes: BalanceItem[];
-    totalPasivos: number;
-  };
-  patrimonio: BalanceItem[];
-  totalPatrimonio: number;
+  activoCorriente: BalanceItem[];
+  activoNoCorriente: BalanceItem[];
+  totalActivoCorriente: number;
+  totalActivoNoCorriente: number;
+  totalActivo: number;
+  pasivoCorriente: BalanceItem[];
+  pasivoNoCorriente: BalanceItem[];
+  totalPasivoCorriente: number;
+  totalPasivoNoCorriente: number;
+  totalPasivo: number;
+  capitalContable: BalanceItem[];
+  totalCapitalContable: number;
+  utilidades: number;
+  totalPasivoMasCapital: number;
 }
 
 interface BalanceItem {
@@ -56,12 +58,8 @@ const BalanceSheetSection: React.FC<BalanceSheetProps> = ({ userId, isLoading })
     }
   };
 
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('es-CO', {
-      style: 'currency',
-      currency: 'COP',
-      minimumFractionDigits: 2,
-    }).format(amount);
+  const formatCurrency = (amount: number | undefined) => {
+    return `$${(amount || 0).toFixed(2)}`;
   };
 
   if (isLoadingSheet || isLoading) {
@@ -103,166 +101,161 @@ const BalanceSheetSection: React.FC<BalanceSheetProps> = ({ userId, isLoading })
         </p>
       </div>
 
-      <div className="grid grid-cols-2 gap-8">
-        {/* ACTIVOS */}
-        <div>
-          <h3 className="text-xl font-bold mb-4 border-b-2 border-gray-800 pb-2">ACTIVOS</h3>
-
-          <div className="mb-6">
-            <h4 className="font-semibold text-gray-700 mb-3 ml-4">Activos Corrientes</h4>
-            {balanceSheet.activos.corrientes.length > 0 ? (
-              <div className="ml-4">
-                {balanceSheet.activos.corrientes.map((item, idx) => (
-                  <div key={idx} className="flex justify-between py-1 text-sm">
-                    <span className="ml-4">{item.nombre} ({item.codigo})</span>
-                    <span className="font-mono">{formatCurrency(item.saldo)}</span>
-                  </div>
-                ))}
-                <div className="flex justify-between py-2 mt-2 border-t border-gray-300 font-semibold">
-                  <span className="ml-4">Subtotal Corrientes</span>
-                  <span className="font-mono">
-                    {formatCurrency(
-                      balanceSheet.activos.corrientes.reduce((sum, item) => sum + item.saldo, 0)
-                    )}
-                  </span>
-                </div>
-              </div>
-            ) : (
-              <p className="text-gray-500 text-sm ml-8">Sin activos corrientes</p>
+      <div className="overflow-x-auto">
+        <table className="w-full border-collapse">
+          <thead>
+            <tr className="bg-blue-50">
+              <th colSpan={2} className="px-4 py-3 text-center font-bold text-gray-800 border-b-2 border-gray-300">
+                Activo corriente
+              </th>
+              <th colSpan={2} className="px-4 py-3 text-center font-bold text-gray-800 border-b-2 border-gray-300">
+                Pasivo corriente
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {/* Renderizar filas de activo y pasivo corriente en paralelo */}
+            {(() => {
+              const maxRows = Math.max(
+                balanceSheet.activoCorriente?.length || 0,
+                balanceSheet.pasivoCorriente?.length || 0
+              );
+              const rows = [];
+              
+              for (let i = 0; i < maxRows; i++) {
+                const activoItem = balanceSheet.activoCorriente?.[i];
+                const pasivoItem = balanceSheet.pasivoCorriente?.[i];
+                
+                rows.push(
+                  <tr key={`corriente-${i}`} className="border-b hover:bg-gray-50">
+                    <td className="px-4 py-2 text-gray-800">
+                      {activoItem?.nombre || ''}
+                    </td>
+                    <td className="px-4 py-2 text-right font-mono text-gray-800">
+                      {activoItem ? formatCurrency(activoItem.saldo) : ''}
+                    </td>
+                    <td className="px-4 py-2 text-gray-800">
+                      {pasivoItem?.nombre || ''}
+                    </td>
+                    <td className="px-4 py-2 text-right font-mono text-gray-800">
+                      {pasivoItem ? formatCurrency(pasivoItem.saldo) : ''}
+                    </td>
+                  </tr>
+                );
+              }
+              
+              return rows;
+            })()}
+            
+            {/* Separador para Activo No Corriente y Pasivo No Corriente */}
+            <tr className="bg-blue-50">
+              <th colSpan={2} className="px-4 py-3 text-center font-bold text-gray-800 border-t-2 border-b-2 border-gray-300">
+                Activo no corriente
+              </th>
+              <th colSpan={2} className="px-4 py-3 text-center font-bold text-gray-800 border-t-2 border-b-2 border-gray-300">
+                Pasivo no corriente
+              </th>
+            </tr>
+            
+            {/* Renderizar filas de activo y pasivo no corriente en paralelo */}
+            {(() => {
+              const maxRows = Math.max(
+                balanceSheet.activoNoCorriente?.length || 0,
+                balanceSheet.pasivoNoCorriente?.length || 0
+              );
+              const rows = [];
+              
+              for (let i = 0; i < maxRows; i++) {
+                const activoItem = balanceSheet.activoNoCorriente?.[i];
+                const pasivoItem = balanceSheet.pasivoNoCorriente?.[i];
+                
+                rows.push(
+                  <tr key={`no-corriente-${i}`} className="border-b hover:bg-gray-50">
+                    <td className="px-4 py-2 text-gray-800">
+                      {activoItem?.nombre || ''}
+                    </td>
+                    <td className="px-4 py-2 text-right font-mono text-gray-800">
+                      {activoItem ? formatCurrency(activoItem.saldo) : ''}
+                    </td>
+                    <td className="px-4 py-2 text-gray-800">
+                      {pasivoItem?.nombre || ''}
+                    </td>
+                    <td className="px-4 py-2 text-right font-mono text-gray-800">
+                      {pasivoItem ? formatCurrency(pasivoItem.saldo) : ''}
+                    </td>
+                  </tr>
+                );
+              }
+              
+              return rows;
+            })()}
+            
+            {/* Fila de Utilidades en Pasivo No Corriente - Muestra valor automático del estado de resultados */}
+            {balanceSheet.utilidades > 0 && (
+              <tr className="border-b hover:bg-gray-50">
+                <td className="px-4 py-2"></td>
+                <td className="px-4 py-2"></td>
+                <td className="px-4 py-2 text-gray-800 font-semibold">Utilidades</td>
+                <td className="px-4 py-2 text-right font-mono text-gray-800 font-semibold">
+                  {formatCurrency(balanceSheet.utilidades)}
+                </td>
+              </tr>
             )}
-          </div>
-
-          <div className="mb-6">
-            <h4 className="font-semibold text-gray-700 mb-3 ml-4">Activos No Corrientes</h4>
-            {balanceSheet.activos.noCorrientes.length > 0 ? (
-              <div className="ml-4">
-                {balanceSheet.activos.noCorrientes.map((item, idx) => (
-                  <div key={idx} className="flex justify-between py-1 text-sm">
-                    <span className="ml-4">{item.nombre} ({item.codigo})</span>
-                    <span className="font-mono">{formatCurrency(item.saldo)}</span>
-                  </div>
-                ))}
-                <div className="flex justify-between py-2 mt-2 border-t border-gray-300 font-semibold">
-                  <span className="ml-4">Subtotal No Corrientes</span>
-                  <span className="font-mono">
-                    {formatCurrency(
-                      balanceSheet.activos.noCorrientes.reduce((sum, item) => sum + item.saldo, 0)
-                    )}
-                  </span>
-                </div>
-              </div>
-            ) : (
-              <p className="text-gray-500 text-sm ml-8">Sin activos no corrientes</p>
+            
+            {/* Separador para Capital Contable */}
+            <tr className="bg-blue-50">
+              <th colSpan={2} className="px-4 py-3 text-center font-bold text-gray-800 border-t-2 border-b-2 border-gray-300">
+              </th>
+              <th colSpan={2} className="px-4 py-3 text-center font-bold text-gray-800 border-t-2 border-b-2 border-gray-300">
+                Capital Contable
+              </th>
+            </tr>
+            
+            {/* Renderizar Capital Contable en columna derecha */}
+            {balanceSheet.capitalContable?.map((item, idx) => (
+              <tr key={`capital-${idx}`} className="border-b hover:bg-gray-50">
+                <td className="px-4 py-2"></td>
+                <td className="px-4 py-2"></td>
+                <td className="px-4 py-2 text-gray-800">{item.nombre}</td>
+                <td className="px-4 py-2 text-right font-mono text-gray-800">
+                  {formatCurrency(item.saldo)}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+          <tfoot>
+            {/* Fila de totales */}
+            <tr className="bg-blue-100 font-bold border-t-2 border-gray-400">
+              <td className="px-4 py-3 text-gray-800">Saldo:</td>
+              <td className="px-4 py-3 text-right font-mono text-gray-800">
+                {formatCurrency(balanceSheet.totalActivo)}
+              </td>
+              <td className="px-4 py-3 text-gray-800">Saldo:</td>
+              <td className="px-4 py-3 text-right font-mono text-gray-800">
+                {formatCurrency(balanceSheet.totalPasivoMasCapital)}
+              </td>
+            </tr>
+            
+            {/* Validación de balance */}
+            {Math.abs(balanceSheet.totalActivo - balanceSheet.totalPasivoMasCapital) > 0.01 && (
+              <tr className="bg-red-100">
+                <td colSpan={4} className="px-4 py-3 text-center font-semibold text-red-800">
+                  ⚠️ Desbalance detectado: {formatCurrency(
+                    balanceSheet.totalActivo - balanceSheet.totalPasivoMasCapital
+                  )}
+                </td>
+              </tr>
             )}
-          </div>
-
-          <div className="border-t-4 border-gray-800 pt-4">
-            <div className="flex justify-between py-2 font-bold text-lg">
-              <span>TOTAL ACTIVOS</span>
-              <span className="font-mono">{formatCurrency(balanceSheet.activos.totalActivos)}</span>
-            </div>
-          </div>
-        </div>
-
-        {/* PASIVOS Y PATRIMONIO */}
-        <div>
-          <h3 className="text-xl font-bold mb-4 border-b-2 border-gray-800 pb-2">
-            PASIVOS Y PATRIMONIO
-          </h3>
-
-          <div className="mb-6">
-            <h4 className="font-semibold text-gray-700 mb-3 ml-4">Pasivos Corrientes</h4>
-            {balanceSheet.pasivos.corrientes.length > 0 ? (
-              <div className="ml-4">
-                {balanceSheet.pasivos.corrientes.map((item, idx) => (
-                  <div key={idx} className="flex justify-between py-1 text-sm">
-                    <span className="ml-4">{item.nombre} ({item.codigo})</span>
-                    <span className="font-mono">{formatCurrency(item.saldo)}</span>
-                  </div>
-                ))}
-                <div className="flex justify-between py-2 mt-2 border-t border-gray-300 font-semibold">
-                  <span className="ml-4">Subtotal Corrientes</span>
-                  <span className="font-mono">
-                    {formatCurrency(
-                      balanceSheet.pasivos.corrientes.reduce((sum, item) => sum + item.saldo, 0)
-                    )}
-                  </span>
-                </div>
-              </div>
-            ) : (
-              <p className="text-gray-500 text-sm ml-8">Sin pasivos corrientes</p>
-            )}
-          </div>
-
-          <div className="mb-6">
-            <h4 className="font-semibold text-gray-700 mb-3 ml-4">Pasivos No Corrientes</h4>
-            {balanceSheet.pasivos.noCorrientes.length > 0 ? (
-              <div className="ml-4">
-                {balanceSheet.pasivos.noCorrientes.map((item, idx) => (
-                  <div key={idx} className="flex justify-between py-1 text-sm">
-                    <span className="ml-4">{item.nombre} ({item.codigo})</span>
-                    <span className="font-mono">{formatCurrency(item.saldo)}</span>
-                  </div>
-                ))}
-                <div className="flex justify-between py-2 mt-2 border-t border-gray-300 font-semibold">
-                  <span className="ml-4">Subtotal No Corrientes</span>
-                  <span className="font-mono">
-                    {formatCurrency(
-                      balanceSheet.pasivos.noCorrientes.reduce((sum, item) => sum + item.saldo, 0)
-                    )}
-                  </span>
-                </div>
-              </div>
-            ) : (
-              <p className="text-gray-500 text-sm ml-8">Sin pasivos no corrientes</p>
-            )}
-          </div>
-
-          <div className="mb-6 border-t-2 border-gray-300 pt-4">
-            <div className="flex justify-between py-2 font-semibold">
-              <span>TOTAL PASIVOS</span>
-              <span className="font-mono">{formatCurrency(balanceSheet.pasivos.totalPasivos)}</span>
-            </div>
-          </div>
-
-          <div className="mb-4">
-            <h4 className="font-semibold text-gray-700 mb-3 ml-4">Patrimonio</h4>
-            {balanceSheet.patrimonio.length > 0 ? (
-              <div className="ml-4">
-                {balanceSheet.patrimonio.map((item, idx) => (
-                  <div key={idx} className="flex justify-between py-1 text-sm">
-                    <span className="ml-4">{item.nombre} ({item.codigo})</span>
-                    <span className="font-mono">{formatCurrency(item.saldo)}</span>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <p className="text-gray-500 text-sm ml-8">Sin cuentas de patrimonio</p>
-            )}
-          </div>
-
-          <div className="border-t-4 border-gray-800 pt-4">
-            <div className="flex justify-between py-2 font-bold text-lg">
-              <span>TOTAL PASIVOS + PATRIMONIO</span>
-              <span className="font-mono">
-                {formatCurrency(balanceSheet.pasivos.totalPasivos + balanceSheet.totalPatrimonio)}
-              </span>
-            </div>
-          </div>
-
-          {Math.abs(
-            balanceSheet.activos.totalActivos -
-              (balanceSheet.pasivos.totalPasivos + balanceSheet.totalPatrimonio)
-          ) > 0.01 && (
-            <div className="mt-4 p-3 bg-yellow-100 border border-yellow-400 text-yellow-800 rounded text-sm">
-              ⚠️ Desbalance detectado: {formatCurrency(
-                balanceSheet.activos.totalActivos -
-                  (balanceSheet.pasivos.totalPasivos + balanceSheet.totalPatrimonio)
-              )}
-            </div>
-          )}
-        </div>
+          </tfoot>
+        </table>
       </div>
+
+      <button
+        onClick={fetchBalanceSheet}
+        className="mt-6 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition duration-200"
+      >
+        Actualizar
+      </button>
     </div>
   );
 };

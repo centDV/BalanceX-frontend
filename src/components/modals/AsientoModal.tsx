@@ -85,8 +85,9 @@ const AsientoModal: React.FC<AsientoModalProps> = ({ isOpen, onClose, onSave, ca
     setIvaCalculationType('added');
   };
 
-  const detailAccounts = useMemo(() => {
-    return catalog.filter(acc => !acc.es_cuenta_mayor);
+  const accountsForSelect = useMemo(() => {
+    // Mostrar todas las cuentas (incluye cuentas mayores y de detalle)
+    return catalog.slice();
   }, [catalog]);
 
   const totalDebito = lines.reduce((sum, line) => sum + line.debito, 0);
@@ -104,24 +105,21 @@ const AsientoModal: React.FC<AsientoModalProps> = ({ isOpen, onClose, onSave, ca
         if (line.tempKey === key) {
           if (field === 'cuenta_id') {
             const selectedAccount = catalog.find(acc => acc.id === parseInt(value));
-            
-            if (selectedAccount && selectedAccount.es_cuenta_mayor) {
-              setValidationError(`Error: No puedes seleccionar una cuenta mayor (${selectedAccount.nombre}). Selecciona una cuenta de detalle.`);
-              return line;
-            }
 
             if (selectedAccount) {
-              setValidationError(''); 
+              // Allow selecting cuentas mayores and detalle
+              setValidationError('');
               return {
                 ...line,
                 cuenta_id: parseInt(value),
                 codigo: selectedAccount.codigo,
                 nombre: selectedAccount.nombre,
-                naturaleza: selectedAccount.naturaleza, 
-                debito: 0.00, 
+                naturaleza: selectedAccount.naturaleza,
+                debito: 0.00,
                 credito: 0.00,
               };
             }
+
             return {
               ...line,
               cuenta_id: null,
@@ -320,7 +318,7 @@ const AsientoModal: React.FC<AsientoModalProps> = ({ isOpen, onClose, onSave, ca
         <div className="pr-2 mb-4 space-y-2 border-t pt-4">
           <h3 className="text-lg font-semibold text-gray-700 sticky top-0 bg-white">Líneas Contables</h3>
           <div className="grid grid-cols-12 gap-2 text-sm font-bold text-gray-600 pb-2 border-b">
-            <div className="col-span-5">Cuenta de Detalle</div>
+            <div className="col-span-5">Cuenta</div>
             <div className="col-span-3 text-right">DEBE</div>
             <div className="col-span-3 text-right">HABER</div>
             <div className="col-span-1"></div>
@@ -336,9 +334,9 @@ const AsientoModal: React.FC<AsientoModalProps> = ({ isOpen, onClose, onSave, ca
                     className="block w-full border border-gray-300 rounded-md shadow-sm p-2 text-sm"
                   >
                     <option value="">-- Seleccionar Cuenta --</option>
-                    {detailAccounts.map(acc => (
+                    {accountsForSelect.map(acc => (
                       <option key={acc.id} value={acc.id}>
-                        {acc.codigo} - {acc.nombre}
+                        {acc.codigo} - {acc.nombre} {acc.es_cuenta_mayor ? '(Mayor)' : ''}
                       </option>
                     ))}
                   </select>
